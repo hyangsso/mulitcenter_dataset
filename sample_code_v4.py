@@ -48,7 +48,7 @@ def make_lab_dictionary():
     for col in dflcode[['lab name', 'parid']].values: 
         name = col[0]
         ids = col[1].split(', ')
-        
+    
         for id in ids:
             if id == '':
                 continue
@@ -398,153 +398,165 @@ def label_ward_vital(dfor):
     vital_labeling_dfresult = vital_labeling_dfersult.append(ecmo_crrt_dfresult, ignore_index=True)        
     
     # # 3. mv
-    print('mv...', end='')
-    dfmvgcs = pd.read_csv('mv_gcs_total.csv.xz', usecols=['환자번호','[간호기록]기록작성일시','Attribute','Value'], parse_dates=['[간호기록]기록작성일시'])
-    dfmvgcs.columns = ['subject_id','charttime','attribute','value']
-    dfmvgcs = dfmvgcs[~((dfmvgcs['attribute']=='ventilator 모드 종류') & (dfmvgcs['value']=='NIV-NAVA'))] # excluding NIV
+    # print('mv...', end='')
+    # dfmvgcs = pd.read_csv('mv_gcs_total.csv.xz', usecols=['환자번호','[간호기록]기록작성일시','Attribute','Value'], parse_dates=['[간호기록]기록작성일시'])
+    # dfmvgcs.columns = ['subject_id','charttime','attribute','value']
+    # dfmvgcs = dfmvgcs[~((dfmvgcs['attribute']=='ventilator 모드 종류') & (dfmvgcs['value']=='NIV-NAVA'))] # excluding NIV
     
-    # if not included in dtsart and dtend, should be removed because of null value
-    dfmerge = pd.merge(dfmvgcs, dfor[['opid', 'orin', 'admissiontime', 'subject_id', 'dischargetime']], how='left', on = 'subject_id')
-    dfmerge = dfmerge[dfmerge['opid'].notnull()]
+    # # if not included in dtsart and dtend, should be removed because of null value
+    # dfmerge = pd.merge(dfmvgcs, dfor[['opid', 'orin', 'admissiontime', 'subject_id', 'dischargetime']], how='left', on = 'subject_id')
+    # dfmerge = dfmerge[dfmerge['opid'].notnull()]
     
-    # only mv, gcs data within or admission time and discharge time
-    dfmerge['dcnote'] = dfmerge.apply(lambda x: extract_wanted_period(x['admissiontime'], x['charttime'], x['dischargetime']), axis=1) 
-    dfmerge = dfmerge[dfmerge.dcnote == 1]
-    dfmerge['charttime'] = dfmerge.apply(lambda x: convert_to_relative_time(x['orin'], x['charttime']), axis=1)
+    # # only mv, gcs data within or admission time and discharge time
+    # dfmerge['dcnote'] = dfmerge.apply(lambda x: extract_wanted_period(x['admissiontime'], x['charttime'], x['dischargetime']), axis=1) 
+    # dfmerge = dfmerge[dfmerge.dcnote == 1]
+    # dfmerge['charttime'] = dfmerge.apply(lambda x: convert_to_relative_time(x['orin'], x['charttime']), axis=1)
     
-    dfmerge.drop(['subject_id','admissiontime','dischargetime', 'dcnote', 'orin'], axis=1, inplace=True)    
+    # dfmerge.drop(['subject_id','admissiontime','dischargetime', 'dcnote', 'orin'], axis=1, inplace=True)    
     
-    # 3-(1). gcs
-    dfverbal = dfmerge[dfmerge['attribute'].str.contains('verbal', na=False)].sort_values(['opid','charttime']).reset_index(drop=True).dropna()
+    # # 3-(1). gcs
+    # dfverbal = dfmerge[dfmerge['attribute'].str.contains('verbal', na=False)].sort_values(['opid','charttime']).reset_index(drop=True).dropna()
     
-    # E, T -> mv(1) / 1,2,3 ... -> non-mv(0) 
-    dfverbal.loc[dfverbal['value'].str.isalpha(), 'mv'] = 1
-    dfverbal.loc[dfverbal['value'].str.isdigit(), 'mv'] = 0
+    # # E, T -> mv(1) / 1,2,3 ... -> non-mv(0) 
+    # dfverbal.loc[dfverbal['value'].str.isalpha(), 'mv'] = 1
+    # dfverbal.loc[dfverbal['value'].str.isdigit(), 'mv'] = 0
 
-    # gcs time search for each operation case
-    vb_dfresult = pd.DataFrame(columns=['opid','charttime','attribute','value'])
-    for opid in set(dfverbal.opid.values):
-        data = dfverbal.loc[dfverbal['opid']==opid].reset_index(drop=True)
+    # # gcs time search for each operation case
+    # vb_dfresult = pd.DataFrame(columns=['opid','charttime','attribute','value'])
+    # for opid in set(dfverbal.opid.values):
+    #     data = dfverbal.loc[dfverbal['opid']==opid].reset_index(drop=True)
 
-        # 1: only not mv, 0: only mv
-        if data.mv.mean() == 1 or data.mv.mean() == 0 :
-            continue
+    #     # 1: only not mv, 0: only mv
+    #     if data.mv.mean() == 1 or data.mv.mean() == 0 :
+    #         continue
         
-        # find cases that last 2 consecutive times after being replaced by a number
-        for idx, row in data[data.mv==0].iterrows():
-            dt = row['charttime']
+    #     # find cases that last 2 consecutive times after being replaced by a number
+    #     for idx, row in data[data.mv==0].iterrows():
+    #         dt = row['charttime']
         
-            if data.iloc[idx-1]['mv'] == 0 and data.iloc[idx-2]['mv'] == 1:
-                vb_dfresult = vb_dfresult.append(pd.Series([opid, dt, 'mv_gcs', 0], index=vb_dfresult.columns), ignore_index=True)
+    #         if data.iloc[idx-1]['mv'] == 0 and data.iloc[idx-2]['mv'] == 1:
+    #             vb_dfresult = vb_dfresult.append(pd.Series([opid, dt, 'mv_gcs', 0], index=vb_dfresult.columns), ignore_index=True)
     
-    # 3-(2). mv
-    dfmv = dfmerge[~(dfmerge['attribute'].str.contains('verbal', na=False))]
-    # merge with mv data to account for gcs 
-    vb_mv_merge = dfmv.append(vb_dfresult, ignore_index=True).sort_values(['opid','charttime']).reset_index(drop=True).dropna()
+    # # 3-(2). mv
+    # dfmv = dfmerge[~(dfmerge['attribute'].str.contains('verbal', na=False))]
+    # # merge with mv data to account for gcs 
+    # vb_mv_merge = dfmv.append(vb_dfresult, ignore_index=True).sort_values(['opid','charttime']).reset_index(drop=True).dropna()
 
-    # mv time search for each operation case
-    mv_dfresult = pd.DataFrame(columns=['opid','charttime','itemname','value'])
-    for opid in vb_mv_merge['opid'].drop_duplicates().values: 
+    # # mv time search for each operation case
+    # mv_dfresult = pd.DataFrame(columns=['opid','charttime','itemname','value'])
+    # for opid in vb_mv_merge['opid'].drop_duplicates().values: 
         
-        data = vb_mv_merge[(vb_mv_merge['opid']==opid)]
-        # remove values after the time labeled gcs
-        try:
-            data = data[:data[data['attribute']=='mv_gcs'].index.max()].reset_index(drop=True)
-        except TypeError:
-            data = data.reset_index(drop=True)
+    #     data = vb_mv_merge[(vb_mv_merge['opid']==opid)]
+    #     # remove values after the time labeled gcs
+    #     try:
+    #         data = data[:data[data['attribute']=='mv_gcs'].index.max()].reset_index(drop=True)
+    #     except TypeError:
+    #         data = data.reset_index(drop=True)
         
-        # the maximum interval for ecmo is 8 hours
-        idxes = list(data[data.charttime.diff(periods=-1) < -60*8].index)
-        idxes.insert(0,-1)
-        idxes.append(data.index.max())
+    #     # the maximum interval for ecmo is 8 hours
+    #     idxes = list(data[data.charttime.diff(periods=-1) < -60*8].index)
+    #     idxes.insert(0,-1)
+    #     idxes.append(data.index.max())
         
-        # search for idxes with a maximum interval lager than 8 hours and label all intermittent hours in those idxes as 1
-        for idx in range(len(idxes)-1): 
-            result = pd.DataFrame(range(data.iloc[idxes[idx]+1]['charttime'], data.iloc[idxes[idx+1]]['charttime']+1, 5), columns=['charttime'])
-            result[['opid', 'itemname', 'value']] = [opid, 'mv', 1]
-            mv_dfresult = mv_dfresult.append(result, ignore_index=False)
+    #     # search for idxes with a maximum interval lager than 8 hours and label all intermittent hours in those idxes as 1
+    #     for idx in range(len(idxes)-1): 
+    #         result = pd.DataFrame(range(data.iloc[idxes[idx]+1]['charttime'], data.iloc[idxes[idx+1]]['charttime']+1, 5), columns=['charttime'])
+    #         result[['opid', 'itemname', 'value']] = [opid, 'mv', 1]
+    #         mv_dfresult = mv_dfresult.append(result, ignore_index=False)
             
-    vital_labeling_dfresult = vital_labeling_dfresult.append(mv_dfresult, ignore_index=True)
+    # vital_labeling_dfresult = vital_labeling_dfresult.append(mv_dfresult, ignore_index=True)
     print('done')
     
     return vital_labeling_dfresult
 
 # make vitals table
-def make_vitals_table(dfor): 
+def make_vitals_table(dfor):     
     listopid = list(dfor['opid'].unique())
     
-    n = 1000
-    listopids = [listopid[i * n:(i + 1) * n] for i in range((len(listopid) - 1 + n) // n )]
+    dictvcode = make_vital_dictionary()
     
-    dfvital = pd.DataFrame(columns=['opid', 'itemname', 'charttime', 'value', 'row_id'])
+    n = 10000
+    listopids = [listopid[i * n:(i + 1) * n] for i in range((len(listopid) - 1 + n) // n )][22:]
+    
     for opids in listopids:
         cur = db.cursor()
         sql = f'SELECT * FROM vitals WHERE opid IN {tuple(opids)}'
         cur.execute(sql)
         data = cur.fetchall()
 
-        datavital = pd.DataFrame(data)
-        dfvital = dfvital.append(datavital, ignore_index=True)
+        dfvital = pd.DataFrame(data, columns=['opid', 'itemname', 'charttime', 'value', 'row_id'])
+        dfvital = dfvital[dfvital['itemname'].isin(list(dictvcode.keys()))]
         print(len(dfvital))
     
-    print(len(dfvital))
-    
-    # remove all value not in the vital dictionary
-    dictvcode = make_vital_dictionary()
-    dfvital.replace({'itemname': dictvcode}, inplace=True)
-    dfvital = dfvital[dfvital['itemname'].str.contains('|'.join(list(set(dictvcode.values()))), na=False)]
-    
-    # remove non-real numbers
-    dfvital['float_type'] = dfvital['value'].apply(extract_float)
-    dfvital = dfvital[dfvital['float_type']==1]
-    
-    # replace relative time based on orin
-    dfmerge = pd.merge(dfvital, dfor[['opid', 'orin']], how='left', on = 'opid')
-    dfmerge['charttime'] = dfmerge.apply(lambda x: convert_to_relative_time(x['orin'], x['charttime']), axis=1)
+        # remove all value not in the vital dictionary
+        # dfvital.
+        dfvital.replace({'itemname': dictvcode}, inplace=True)
+        
+        # remove non-real numbers
+        dfvital['float_type'] = dfvital['value'].apply(extract_float)
+        dfvital = dfvital[dfvital['float_type']==1]
+        
+        # replace relative time based on orin
+        dfmerge = pd.merge(dfvital, dfor[['opid', 'orin']], how='left', on = 'opid')
+        dfmerge['charttime'] = dfmerge.apply(lambda x: convert_to_relative_time(x['orin'], x['charttime']), axis=1)
 
-    dfmerge.drop(['row_id', 'orin', 'float_type'], axis=1, inplace=True)
-    
-    return dfmerge
+        dfmerge.drop(['row_id', 'orin', 'float_type'], axis=1, inplace=True)
+
+        # n = 10000 씩 저장
+        if not os.path.exists(vitals_pickle_file):
+            pickle.dump(dfmerge, open(vitals_pickle_file, 'wb'))
+        else:
+            vitals_df = pickle.load(open(vitals_pickle_file, 'rb'))
+            vitals_df = vitals_df.append(dfmerge, ignore_index=True)
+            pickle.dump(vitals_df, open(vitals_pickle_file, 'wb'))
+        
+    return vitals_df
 
 # make ward vitals table
 def make_ward_vitals_table(dfor):
     listhid = list(dfor['subject_id'].unique())
     
+    dictvcode = make_vital_dictionary()
+    
     n = 10000
     listhids = [listhid[i * n:(i + 1) * n] for i in range((len(listhid) - 1 + n) // n )]
     
-    dfwvital = pd.DataFrame(columns=['row_id', 'subject_id', 'itemname', 'charttime', 'value'])
+    dfwvital = pd.DataFrame()
     for hids in listhids:
         cur = db.cursor()
         sql = f'SELECT * FROM ward_vitals WHERE hid IN {tuple(hids)}'
         cur.execute(sql)
         data = cur.fetchall()
         
-        datawvital = pd.DataFrame(data)
-        dfwvital = dfwvital.append(datawvital, ignore_index=True)
+        dfwvital = pd.DataFrame(data, columns=['row_id', 'subject_id', 'itemname', 'charttime', 'value'])
+        dfwvital = dfwvital[dfwvital['itemname'].isin(list(dictvcode.keys()))]
         print(len(dfwvital))
-    
-    print(len(dfwvital))
-    
-    # remove all value not in the vital dictionary
-    dictvcode = make_vital_dictionary()
-    dfwvital.replace({'itemname': dictvcode}, inplace=True)
-    dfwvital = dfwvital[dfwvital['itemname'].str.contains('|'.join(list(set(dictvcode.values()))), na=False)]
-    
-    dfwvital['float'] = dfwvital['value'].apply(extract_float) 
-    dfwvital = dfwvital[dfwvital['float']==1] # remove all not real values
-    
-    # only ward vital data within admission time and discharge time
-    dfmerge = pd.merge(dfwvital, dfor[['opid', 'orin', 'subject_id', 'admissiontime','dischargetime']], how='left', on = 'subject_id')
-    dfmerge['dcnote'] = dfmerge.apply(lambda x: extract_wanted_period(x['admissiontime'], x['charttime'], x['dischargetime']), axis=1) 
-    dfresult = dfmerge[dfmerge.dcnote == 1]
-    
-    # replace relative time based on orin
-    dfresult['charttime'] = dfresult.apply(lambda x: convert_to_relative_time(x['orin'], x['charttime']), axis=1)
-    
-    dfresult.drop(['row_id', 'subject_id', 'admissiontime', 'dischargetime', 'dcnote', 'orin', 'float'], axis=1, inplace=True) 
-    
-    return dfresult
+        
+        # remove all value not in the vital dictionary
+        dfwvital.replace({'itemname': dictvcode}, inplace=True)
+        
+        dfwvital['float'] = dfwvital['value'].apply(extract_float) 
+        dfwvital = dfwvital[dfwvital['float']==1] # remove all not real values
+        
+        # only ward vital data within admission time and discharge time
+        dfmerge = pd.merge(dfwvital, dfor[['opid', 'orin', 'subject_id', 'admissiontime','dischargetime']], how='left', on = 'subject_id')
+        dfmerge['dcnote'] = dfmerge.apply(lambda x: extract_wanted_period(x['admissiontime'], x['charttime'], x['dischargetime']), axis=1) 
+        dfresult = dfmerge[dfmerge.dcnote == 1]
+        
+        # replace relative time based on orin
+        dfresult['charttime'] = dfresult.apply(lambda x: convert_to_relative_time(x['orin'], x['charttime']), axis=1)
+        
+        dfresult.drop(['row_id', 'subject_id', 'admissiontime', 'dischargetime', 'dcnote', 'orin', 'float'], axis=1, inplace=True) 
+        
+        # n = 10000 씩 저장
+        if not os.path.exists(ward_vitals_pickle_file):
+            pickle.dump(dfmerge, open(ward_vitals_pickle_file, 'wb'))
+        else:
+            ward_vitals_df = pickle.load(open(ward_vitals_pickle_file, 'rb'))
+            ward_vitals_df = ward_vitals_df.append(dfmerge, ignore_index=True)
+            pickle.dump(ward_vitals_df, open(ward_vitals_pickle_file, 'wb'))
+        
+    return ward_vitals_df
 
 # make diagnosis table
 def make_diagnosis_table(dfor):
@@ -594,27 +606,30 @@ else:
     print('using...', labevents_pickle_file)
     labevents_df = pickle.load(open(labevents_pickle_file, 'rb'))
 
-if not os.path.exists(vitals_pickle_file):
-    print('making...', vitals_pickle_file)
-    vitals_df = make_vitals_table(operations_df)
-    pickle.dump(vitals_df, open(vitals_pickle_file, 'wb'))
-    print(vitals_df)
-else: 
-    print('using...', vitals_pickle_file)
-    vitals_df = pickle.load(open(vitals_pickle_file, 'rb'))
-    
-if not os.path.exists(ward_vitals_pickle_file):
-    print('making...', ward_vitals_pickle_file)
-    ward_vitals_df = make_ward_vitals_table(operations_df)
-    pickle.dump(ward_vitals_df, open(ward_vitals_pickle_file, 'wb'))
-    print(ward_vitals_df)
-else: 
-    print('using...', ward_vitals_pickle_file)
-    ward_vitals_df = pickle.load(open(ward_vitals_pickle_file, 'rb'))
+vitals_df = make_vitals_table(operations_df)
+
+# if not os.path.exists(vitals_pickle_file):
+#     print('making...', vitals_pickle_file)
+#     vitals_df = make_vitals_table(operations_df)
+#     print(vitals_df)
+# else: 
+#     print('using...', vitals_pickle_file)
+#     vitals_df = pickle.load(open(vitals_pickle_file, 'rb'))
+
+ward_vitals_df = make_ward_vitals_table(operations_df)
+
+# if not os.path.exists(ward_vitals_pickle_file):
+#     print('making...', ward_vitals_pickle_file)
+#     ward_vitals_df = make_ward_vitals_table(operations_df)
+#     pickle.dump(ward_vitals_df, open(ward_vitals_pickle_file, 'wb'))
+#     print(ward_vitals_df)
+# else: 
+#     print('using...', ward_vitals_pickle_file)
+#     ward_vitals_df = pickle.load(open(ward_vitals_pickle_file, 'rb'))
 
 labeling_ward_vital = label_ward_vital(operations_df)
 
-# merge ward_vitals & vitals 
+# merge ward_vitals & vitals s
 vitals_df = vitals_df.append(ward_vitals_df, ignore_index=True).append(labeling_ward_vital, ignore_index=True)
 vitals_df = vitals_df.astype({'value':float})
 vitals_df = vitals_df.groupby(['opid', 'charttime', 'itemname'], as_index=False).median()
